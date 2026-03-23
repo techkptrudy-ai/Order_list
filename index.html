@@ -250,7 +250,7 @@
         const photos = logStorage.filter(it => it.foto);
         if(photos.length > 0) {
             doc.addPage();
-            doc.setFontSize(14); doc.text("LAMPIRAN FOTO DOKUMENTASI", 14, 15);
+            doc.setFontSize(14); doc.text("Lampiran Foto Jenis/contoh Barang", 14, 15);
             let x = 14, y = 25, w = 50, h = 40;
             photos.forEach((it) => {
                 if (y + h > 280) { doc.addPage(); y = 20; }
