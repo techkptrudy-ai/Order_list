@@ -9,7 +9,6 @@
     <style>
         :root {
             --primary: #00f2ff;
-            /* Transparansi sangat tipis agar background pesawat terlihat tajam */
             --glass-bg: rgba(0, 0, 0, 0.15); 
             --glass-border: rgba(255, 255, 255, 0.1);
         }
@@ -19,7 +18,6 @@
         body {
             font-family: 'Segoe UI', Roboto, sans-serif;
             margin: 0; padding: 15px; color: white; min-height: 100vh;
-            /* PERBAIKAN BACKGROUND: Gambar Pesawat Take-Off */
             background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), 
                               url('https://images.pexels.com/photos/46148/air-liner-aircraft-air-travel-jet-46148.jpeg?auto=compress&cs=tinysrgb&w=1920');
             background-repeat: no-repeat;
@@ -45,7 +43,7 @@
         h1 { text-align: center; letter-spacing: 6px; color: var(--primary); text-transform: uppercase; font-weight: 300; margin-bottom: 30px; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
 
         .header-section { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; }
-        .header-section input, .header-section select { flex: 1; min-width: 250px; height: 45px; }
+        .header-section input { flex: 1; min-width: 250px; height: 45px; }
 
         .form-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -65,6 +63,10 @@
         table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.98); color: #222; }
         th { background: #001d26; color: white; padding: 16px; text-align: left; text-transform: uppercase; font-size: 12px; border: none; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
+
+        .action-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 4px; }
+        .btn-edit { background: #ffc107; color: #000; }
+        .btn-delete { background: #dc3545; color: #fff; }
 
         .gallery-container {
             margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 20px;
@@ -89,16 +91,18 @@
 
     <div class="header-section">
         <input type="text" id="judulDoc" placeholder="Keterangan Tambahan (Contoh: Urgent Maintenance)">
-        <select id="unitAsal">
-            <option value="">-- Pilih Unit Kapal --</option>
-            <option value="KMP.Legundi">KMP.Legundi</option>
-            <option value="KMP.Sebuku">KMP.Sebuku</option>
-            <option value="KMP.Batumandi">KMP.Batumandi</option>
-            <option value="KMP.Portlink">KMP.Portlink</option>
-            <option value="KMP.Portlink III">KMP.Portlink III</option>
-            <option value="KMP.Portlink V">KMP.Portlink V</option>
-            <option value="KMP.Jatra III">KMP.Jatra III</option>
-        </select>
+        
+        <!-- Input Unit Kapal (Bisa Dipilih / Diketik Manual) -->
+        <input list="unitKapalList" id="unitAsal" placeholder="-- Pilih / Ketik Unit Kapal --">
+        <datalist id="unitKapalList">
+            <option value="KMP.Legundi">
+            <option value="KMP.Sebuku">
+            <option value="KMP.Batumandi">
+            <option value="KMP.Portlink">
+            <option value="KMP.Portlink III">
+            <option value="KMP.Portlink V">
+            <option value="KMP.Jatra III">
+        </datalist>
     </div>
 
     <div class="form-grid">
@@ -124,7 +128,7 @@
 
         <input type="file" id="fotoFile" accept="image/*">
         
-        <button class="btn-add" onclick="addItem()">TAMBAHKAN KE DAFTAR</button>
+        <button class="btn-add" id="btnSubmit" onclick="addItem()">TAMBAHKAN KE DAFTAR</button>
     </div>
 
     <div class="table-area">
@@ -137,6 +141,7 @@
                     <th>Type</th>
                     <th>Qty</th>
                     <th>Satuan</th>
+                    <th style="width: 130px; text-align: center;">Aksi</th>
                 </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -156,13 +161,20 @@
 
 <script>
     let logStorage = JSON.parse(localStorage.getItem('order_list_v6')) || [];
+    let editIndex = -1; // Flag untuk menandai mode edit
 
     window.onload = () => refreshUI();
 
     async function addItem() {
         const file = document.getElementById('fotoFile').files[0];
         let imgBase64 = "";
-        if(file) imgBase64 = await compressImg(file);
+
+        if(file) {
+            imgBase64 = await compressImg(file);
+        } else if (editIndex >= 0 && logStorage[editIndex]) {
+            // Gunakan foto lama jika tidak memilih file baru saat edit
+            imgBase64 = logStorage[editIndex].foto || "";
+        }
 
         const data = {
             desc: document.getElementById('desc').value,
@@ -175,10 +187,43 @@
 
         if(!data.desc || !data.qty) return alert("Deskripsi dan Qty wajib diisi!");
 
-        logStorage.push(data);
+        if (editIndex === -1) {
+            // Tambah Barang Baru
+            logStorage.push(data);
+        } else {
+            // Perbarui Barang yang Ada
+            logStorage[editIndex] = data;
+            editIndex = -1;
+            document.getElementById('btnSubmit').innerText = "TAMBAHKAN KE DAFTAR";
+            document.getElementById('btnSubmit').style.background = "var(--primary)";
+        }
+
         localStorage.setItem('order_list_v6', JSON.stringify(logStorage));
         refreshUI();
         clearForm();
+    }
+
+    function editItem(index) {
+        const item = logStorage[index];
+        document.getElementById('desc').value = item.desc;
+        document.getElementById('merk').value = item.merk;
+        document.getElementById('type').value = item.type;
+        document.getElementById('qty').value = item.qty;
+        document.getElementById('satuan').value = item.satuan;
+
+        editIndex = index;
+        const btn = document.getElementById('btnSubmit');
+        btn.innerText = "SIMPAN PERUBAHAN BARANG";
+        btn.style.background = "#ffc107";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteItem(index) {
+        if(confirm("Apakah Anda yakin ingin menghapus barang ini?")) {
+            logStorage.splice(index, 1);
+            localStorage.setItem('order_list_v6', JSON.stringify(logStorage));
+            refreshUI();
+        }
     }
 
     function compressImg(file) {
@@ -207,7 +252,19 @@
         tbody.innerHTML = ""; gall.innerHTML = "";
 
         logStorage.forEach((it, i) => {
-            tbody.innerHTML += `<tr><td>${i+1}</td><td><b>${it.desc}</b></td><td>${it.merk}</td><td>${it.type}</td><td>${it.qty}</td><td>${it.satuan}</td></tr>`;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${i+1}</td>
+                    <td><b>${it.desc}</b></td>
+                    <td>${it.merk}</td>
+                    <td>${it.type}</td>
+                    <td>${it.qty}</td>
+                    <td>${it.satuan}</td>
+                    <td style="text-align: center;">
+                        <button class="action-btn btn-edit" onclick="editItem(${i})">Edit</button>
+                        <button class="action-btn btn-delete" onclick="deleteItem(${i})">Hapus</button>
+                    </td>
+                </tr>`;
             if(it.foto) {
                 gall.innerHTML += `<div class="gallery-item"><img src="${it.foto}"><p>Type: ${it.type || '-'}</p></div>`;
             }
@@ -216,12 +273,18 @@
 
     function clearForm() {
         ['desc', 'merk', 'type', 'qty', 'fotoFile'].forEach(id => document.getElementById(id).value = "");
+        editIndex = -1;
+        const btn = document.getElementById('btnSubmit');
+        btn.innerText = "TAMBAHKAN KE DAFTAR";
+        btn.style.background = "var(--primary)";
     }
 
     function resetLog() {
         if(confirm("Hapus seluruh data order list ini?")) {
             localStorage.removeItem('order_list_v6');
-            logStorage = []; refreshUI();
+            logStorage = []; 
+            refreshUI();
+            clearForm();
         }
     }
 
@@ -231,13 +294,33 @@
         const unit = document.getElementById('unitAsal').value || "-";
         const extra = document.getElementById('judulDoc').value;
 
-        doc.setFontSize(18); doc.text("ORDER LIST PART", 14, 15);
+        // Mendapatkan Tanggal, Hari, dan Jam Lengkap
+        const now = new Date();
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        const formattedDate = now.toLocaleDateString('id-ID', options) + " WIB";
+
+        // Perhitungan Ringkasan
+        const totalJenisBarang = logStorage.length;
+        const totalQty = logStorage.reduce((acc, curr) => acc + (Number(curr.qty) || 0), 0);
+
+        // Header Dokumen
+        doc.setFontSize(18); 
+        doc.text("ORDER LIST PART", 14, 15);
+
         doc.setFontSize(10);
         doc.text(`Unit Kapal: ${unit}`, 14, 22);
         doc.text(`Keterangan: ${extra || "-"}`, 14, 27);
-        doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 14, 32);
+        doc.text(`Waktu Cetak: ${formattedDate}`, 14, 32);
 
         const rows = logStorage.map((it, i) => [i+1, it.desc, it.merk, it.type, it.qty, it.satuan]);
+        
         doc.autoTable({
             startY: 38,
             head: [['No', 'Deskripsi Barang', 'Merk', 'Type', 'Qty', 'Satuan']],
@@ -246,19 +329,36 @@
             theme: 'grid'
         });
 
+        // Keterangan Tambahan & Ringkasan di bagian bawah Tabel
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Ringkasan Dokumen:", 14, finalY);
+        doc.setFont("helvetica", "normal");
+        doc.text(`- Total Jenis Barang : ${totalJenisBarang} Item`, 14, finalY + 6);
+        doc.text(`- Total Quantity    : ${totalQty}`, 14, finalY + 11);
+
+        // Halaman Lampiran Foto
         const photos = logStorage.filter(it => it.foto);
         if(photos.length > 0) {
             doc.addPage();
-            doc.setFontSize(14); doc.text("LAMPIRAN FOTO JENIS/CONTOH BARANG YANG DIMINTA", 14, 15);
+            doc.setFontSize(14); 
+            doc.setFont("helvetica", "bold");
+            doc.text("LAMPIRAN FOTO JENIS/CONTOH BARANG YANG DIMINTA", 14, 15);
+            
             let x = 14, y = 25, w = 50, h = 40;
             photos.forEach((it) => {
                 if (y + h > 280) { doc.addPage(); y = 20; }
                 doc.addImage(it.foto, 'JPEG', x, y, w, h);
-                doc.setFontSize(8); doc.text(`Type: ${it.type || '-'}`, x, y + h + 5);
-                x += 60; if(x > 150) { x = 14; y += 60; }
+                doc.setFontSize(8); 
+                doc.setFont("helvetica", "normal");
+                doc.text(`Type: ${it.type || '-'}`, x, y + h + 5);
+                x += 60; 
+                if(x > 150) { x = 14; y += 60; }
             });
         }
-        doc.save(`OrderPart_${unit}.pdf`);
+
+        doc.save(`OrderPart_${unit.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`);
     }
 </script>
 </body>
